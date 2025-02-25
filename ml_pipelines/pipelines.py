@@ -140,7 +140,7 @@ def pipeline3_HP_search(X, y, model_name, use_preprocessing=False):
     """
     Hyperparameter search pipeline.
     """
-    from sklearn.model_selection import RandomizedSearchCV
+    from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
     base_model = models.get(model_name, None)
     if base_model is None:
         raise ValueError(f"Model '{model_name}' is not defined in the models dictionary.")
@@ -153,14 +153,12 @@ def pipeline3_HP_search(X, y, model_name, use_preprocessing=False):
     else:
         X_processed = X.values
     param_distributions = params_grids.get(model_name, None)
-    search = RandomizedSearchCV(
+    search = GridSearchCV(
         base_model,
-        param_distributions=param_distributions,
-        n_iter=50,
+        param_grid=param_distributions,
         cv=cv,
         scoring="accuracy",
         n_jobs=-1,
-        random_state=42,
     )
     search.fit(X_processed, y)
     print(f"Best parameters: {search.best_params_}")
@@ -179,7 +177,7 @@ def pipeline4_feature_selection_HP_search(X, y, start_feature, num_features, mod
     Feature selection and hyperparameter search pipeline.
     """
     from sklearn.feature_selection import SequentialFeatureSelector
-    from sklearn.model_selection import RandomizedSearchCV
+    from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
     base_model = models.get(model_name, None)
     if base_model is None:
         raise ValueError(f"Model '{model_name}' is not defined in the models dictionary.")
@@ -206,14 +204,13 @@ def pipeline4_feature_selection_HP_search(X, y, start_feature, num_features, mod
         selected_features = sfs.get_support(indices=True)
         X_selected = X_processed[:, selected_features]
         param_distributions = params_grids.get(model_name, None)
-        search = RandomizedSearchCV(
-            sfs.estimator,
-            param_distributions=param_distributions,
-            n_iter=50,
+        base_model = models.get(model_name, None)
+        search = GridSearchCV(
+            base_model,
+            param_grid=param_distributions,
             cv=cv,
             scoring="accuracy",
             n_jobs=-1,
-            random_state=42,
         )
         search.fit(X_selected, y)
         print(f"Best parameters with {k} features: {search.best_params_}")
