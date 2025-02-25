@@ -2,7 +2,7 @@ import os
 
 user = os.path.expanduser('~')
 # Path to the directory where the data is stored
-data_dir = os.path.join(user, 'Projects', 'data', 'EEG_psychostimulants_2025-02')
+data_dir = os.path.join(user, 'projects/rrg-shahabkb/hamza97/data')
 source_dirs = {"control": "Controls", "patients": "patients", }
 bids_dir = os.path.join(data_dir, 'BIDS')
 derivatives_dir = os.path.join(data_dir, 'derivatives')

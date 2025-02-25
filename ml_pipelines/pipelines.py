@@ -165,13 +165,14 @@ def pipeline3_HP_search(X, y, model_name, use_preprocessing=False):
     search.fit(X_processed, y)
     print(f"Best parameters: {search.best_params_}")
     print(f"Best accuracy: {search.best_score_:.4f}")
-    try:
-        final_output_file = os.path.join(results_dir, f"{model_name}_hyperparameter_search.pkl")
-        with open(final_output_file, "wb") as f:
-            pickle.dump(search.cv_results_, f)
-        print(f"Final results saved to {final_output_file}")
-    except Exception as e:
-        print(f"Error saving final results: {e}")
+    # try:
+    #     final_output_file = os.path.join(results_dir, f"{model_name}_hyperparameter_search.pkl")
+    #     with open(final_output_file, "wb") as f:
+    #         pickle.dump(search.cv_results_, f)
+    #     print(f"Final results saved to {final_output_file}")
+    # except Exception as e:
+    #     print(f"Error saving final results: {e}")
+    return search.best_score_
 
 def pipeline4_feature_selection_HP_search(X, y, start_feature, num_features, model_name, use_preprocessing=False):
     """
