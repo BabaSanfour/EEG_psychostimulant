@@ -117,25 +117,16 @@ def pipeline2_feature_selection(X, y, num_features, model_name, use_preprocessin
             result_dict["feature_importances"] = sfs.estimator.feature_importances_
         selected_features_dict[k] = result_dict
 
-        # Save intermediate results every 10 features
-        if k % 10 == 0:
-            output_file = os.path.join(results_dir, f"{model_name}_selected_features_{k}.pkl")
-            try:
-                with open(output_file, "wb") as f:
-                    pickle.dump(selected_features_dict, f)
-                print(f"Intermediate results saved to {output_file}")
-            except Exception as e:
-                print(f"Error saving intermediate results for {k} features: {e}")
-
-    # Save final results
-    final_output_file = os.path.join(results_dir, f"{model_name}_selected_features_final.pkl")
-    try:
-        with open(final_output_file, "wb") as f:
-            pickle.dump(selected_features_dict, f)
-        print(f"Final results saved to {final_output_file}")
-    except Exception as e:
-        print(f"Error saving final results: {e}")
-
+        # # Save intermediate results every 10 features
+        # if k % 10 == 0:
+        #     output_file = os.path.join(results_dir, f"{model_name}_selected_features_{k}.pkl")
+        #     try:
+        #         with open(output_file, "wb") as f:
+        #             pickle.dump(selected_features_dict, f)
+        #         print(f"Intermediate results saved to {output_file}")
+        #     except Exception as e:
+        #         print(f"Error saving intermediate results for {k} features: {e}")
+    return selected_features_dict
 def pipeline3_HP_search(X, y, model_name, use_preprocessing=False):
     """
     Hyperparameter search pipeline.
@@ -189,7 +180,7 @@ def pipeline4_feature_selection_HP_search(X, y, start_feature, num_features, mod
         X_processed = Pipeline(steps).fit_transform(X)
     else:
         X_processed = X.values
-    feature_counts = list(range(start_feature, num_features + 1))
+    feature_counts = list(range(1, num_features + 1))
     selected_features_dict = {}
     for k in feature_counts:
         print(f"Processing {k} features")
@@ -224,13 +215,26 @@ def pipeline4_feature_selection_HP_search(X, y, start_feature, num_features, mod
         if hasattr(search.best_estimator_, "feature_importances_"):
             result_dict["feature_importances"] = search.best_estimator_.feature_importances_
         selected_features_dict[k] = result_dict
+    return selected_features_dict
 
-        # Save intermediate results every 10 features
-        if k % 10 == 0:
-            output_file = os.path.join(results_dir, f"{model_name}_selected_features_HP_search_{k}.pkl")
-            try:
-                with open(output_file, "wb") as f:
-                    pickle.dump(selected_features_dict, f)
-                print(f"Intermediate results saved to {output_file}")
-            except Exception as e:
-                print(f"Error saving intermediate results for {k} features: {e}")
+def pipeline5_unsupervised(X, n_clusters=2, use_preprocessing=False):
+    """
+    Unsupervised pipeline.
+    """
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_score
+
+    if use_preprocessing:
+        from sklearn.pipeline import Pipeline
+        from sklearn.preprocessing import StandardScaler
+        steps = [("scaler", StandardScaler())]
+        X_processed = Pipeline(steps).fit_transform(X)
+    else:
+        X_processed = X.values
+    KMeans_model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    cluster_labels = KMeans_model.fit_predict(X_processed)
+    # compute silhouette score
+    silhouette_avg = silhouette_score(X_processed, cluster_labels)
+    print(f"Silhouette score for {n_clusters}: {silhouette_avg:.4f}")
+
+    return silhouette_avg, cluster_labels
