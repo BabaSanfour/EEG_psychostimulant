@@ -18,7 +18,6 @@ from mne_bids import write_raw_bids, BIDSPath
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils.config import data_dir, source_dirs, bids_dir
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -127,12 +126,10 @@ def update_participants_tsv(bids_dir: str, subjects_df: pd.DataFrame):
     tsv_path = os.path.join(bids_dir, "participants.tsv")
     participants_df = pd.read_csv(tsv_path, sep='\t')
     
-    # Map subject IDs to participant IDs
     matched_ids = {id_: f"sub-{id_}" for id_ in subjects_df['ID'].values}
     subjects_df['participant_id'] = subjects_df['ID'].map(matched_ids)
     
     merged_df = pd.merge(participants_df, subjects_df, on="participant_id", how="left")
-    # Remove redundant columns and rename to standard BIDS columns
     merged_df.drop(columns=['age', 'ID', 'sex'], inplace=True, errors='ignore')
     merged_df.rename(columns={"Age": "age", "Sex": "sex"}, inplace=True)
     
@@ -141,7 +138,6 @@ def update_participants_tsv(bids_dir: str, subjects_df: pd.DataFrame):
 
 
 def main():
-    # Define directories for patient and control subjects.
     patient_dir = os.path.join(data_dir, source_dirs["patients"])
     control_dir = os.path.join(data_dir, source_dirs["control"])
 
@@ -149,7 +145,6 @@ def main():
     control_ids = get_subject_ids(control_dir)
     logging.info("Found %d patient IDs and %d control IDs", len(patient_ids), len(control_ids))
     
-    # Load mapping and subject metadata.
     mapping_file = os.path.join(data_dir, "csv", "match_missing_control.csv")
     mapping_df = pd.read_csv(mapping_file, header=None, names=["patient", "ID"], sep=';')
     
@@ -157,14 +152,12 @@ def main():
     subjects_df = pd.read_csv(subjects_file)
     subjects_df.rename(columns={"Study ID": "ID", "Psychostimulant (y/n)": "group"}, inplace=True)
     
-    # Process patient subjects.
     for subject_id in patient_ids:
         try:
             read_subject_data(subject_id, patient_dir, bids_dir, mapping_df)
         except Exception as e:
             logging.error("Error processing patient %s: %s", subject_id, e)
     
-    # Process control subjects.
     for subject_id in control_ids:
         try:
             read_subject_data(subject_id, control_dir, bids_dir, mapping_df)
@@ -174,7 +167,6 @@ def main():
     logging.info("Finished BIDS conversion for all subjects")
     logging.info("Subjects metadata head:\n%s", subjects_df.head())
     
-    # Update participants.tsv file with additional metadata.
     update_participants_tsv(bids_dir, subjects_df)
 
 

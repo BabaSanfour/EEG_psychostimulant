@@ -1,17 +1,31 @@
+#!/usr/bin/env python3
+"""
+Script to process raw EEG data for all subjects and save the processed 
+data as a derivative in BIDS format.
+"""
+
 import os
-import sys
-from mne_bids import BIDSPath, write_raw_bids
+import logging
+
 import mne
+from mne_bids import BIDSPath, write_raw_bids
+
+import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from utils.config import derivatives_dir, bids_dir, sensors_to_keep, n_subjects
+from utils.config import derivatives_dir, bids_dir, sensors_to_keep, n_subjects  # noqa
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 
-
-def load_raw_data(subject_id):
+def load_raw_data(subject_id: str) -> mne.io.BaseRaw:
     """
-    Load the raw data for a single subject.
+    Load the raw EEG data for a given subject.
     """
-    # Define the path to the raw data file
     bids_path = BIDSPath(
         root=bids_dir,
         subject=subject_id,
@@ -22,26 +36,30 @@ def load_raw_data(subject_id):
         extension=".vhdr",
         datatype="eeg",
     )
-    # Load the raw data
     raw = mne.io.read_raw_brainvision(bids_path, preload=True)
     return raw
 
-def process_subject(raw):
+
+def process_subject(raw: mne.io.BaseRaw) -> mne.io.BaseRaw:
     """
-    Process the raw data for a single subject.
+    Process the raw data by selecting EEG channels, applying the appropriate filter, and setting the montage.
     """
     raw.pick_types(eeg=True, eog=False, ecg=False, emg=False, misc=False)
-    ch_names = raw.ch_names
-    sensors_to_drop = [ch for ch in ch_names if ch not in sensors_to_keep]
-    raw.drop_channels(sensors_to_drop)
-    raw.notch_filter(60, filter_length="auto", phase="zero")
+
+    # Drop channels that are not in the 1020 montage.
+    channels_to_drop = [ch for ch in raw.ch_names if ch not in sensors_to_keep]
+    if channels_to_drop:
+        raw.drop_channels(channels_to_drop)
+
+    raw.filter(0.5, 99.5, verbose=False)
     montage = mne.channels.make_standard_montage("standard_1020")
     raw.set_montage(montage)
     return raw
 
-def save_derivative_raw(raw, subject_id):
+
+def save_derivative_raw(raw: mne.io.BaseRaw, subject_id: str) -> None:
     """
-    Save the preprocessed raw data as a derivative.
+    Save the processed raw data as a derivative using BIDS format.
     """
     bids_path = BIDSPath(
         root=derivatives_dir,
@@ -50,7 +68,7 @@ def save_derivative_raw(raw, subject_id):
         task="RESTING",
         run="01",
         suffix="eeg",
-        extension=".fif",
+        extension=".vhdr",
         datatype="eeg",
         processing="cleaned",
     )
@@ -63,20 +81,20 @@ def save_derivative_raw(raw, subject_id):
         verbose=False,
     )
 
-    
 
-
-if __name__ == "__main__":
-
-    for subject_id in range(1, n_subjects + 1):
-        subject_id = str(subject_id)
-        print(f"\nProcessing subject {subject_id}")
+def main() -> None:
+    """Process raw EEG data for all subjects."""
+    for subject in range(1, n_subjects + 1):
+        subject_id = str(subject)
+        logging.info("Processing subject %s", subject_id)
         try:
             raw = load_raw_data(subject_id)
             raw = process_subject(raw)
             save_derivative_raw(raw, subject_id)
-            print(f"Finished processing subject {subject_id}")
-        except Exception as e:
-            print(f"Error processing subject {subject_id}: {e}")
-            continue
+            logging.info("Finished processing subject %s", subject_id)
+        except Exception as err:
+            logging.error("Error processing subject %s: %s", subject_id, err)
 
+
+if __name__ == "__main__":
+    main()
