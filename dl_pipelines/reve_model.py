@@ -20,13 +20,15 @@ def segment_and_process(eeg_path_file, segment_duration=60):
         print(f"Error reading file: {e}")
         return None
     selected_duration = 20*60 # 20 min of data
+    total_duration =  raw.times[-1]
     n_segments = int(selected_duration / segment_duration)
     embeddings = {}
-    node = ReveEEG().create_standalone()
+    node = ReveEEG.create_standalone()
     node.setup()
     for seg in range(n_segments):
         tmin = seg * segment_duration
         tmax = tmin + segment_duration
+        tmax = min(tmax, total_duration)
         raw_segment = raw.copy().crop(tmin=tmin, tmax=tmax)
         segment_data = raw_segment.get_data()
         embedding = node.process(
@@ -53,7 +55,7 @@ def save_embeddings(embeddings, subject_id):
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description="Segment and process EEG data.")
-    argparser.add_argument("--n_subjects", type=int, default=1, help="Number of subjects to process.")
+    argparser.add_argument("--n_subjects", type=int, default=15, help="Number of subjects to process.")
     argparser.add_argument("--start_subject", type=int, default=1, help="Subject ID to start processing.")
     argparser.add_argument("--segment_duration", type=int, default=60, help="Duration of each segment in seconds.")
     args = argparser.parse_args()
@@ -63,18 +65,25 @@ if __name__ == "__main__":
     print(f"Processing {n_subjects} subjects starting from subject {start_subject}")
     for subject_id in range(start_subject, start_subject + n_subjects):
         subject = f"sub-{subject_id}"
+        embedding_path = os.path.join(results_dir, "embeddings", f"embeddings_{subject}_{segment_duration}.pkl")
+        # skip if embedding file exists
+        if os.path.isfile(embedding_path):
+            continue 
         bids_path = BIDSPath(
             root=derivatives_dir,
-            subject=subject_id,
+            subject=str(subject_id),
             session="01",
             task="RESTING",
             run="01",
             suffix="eeg",
-            extension=".fif",
+            extension=".vhdr",
             datatype="eeg",
             processing="cleaned",
         )
-        start_time = time.time()
-        embeddings = segment_and_process(bids_path, segment_duration)
-        with open(os.path.join(results_dir, "embeddings", f"embeddings_{subject}_{segment_duration}.pkl", "wb")) as f:
-            pickle.dump(embeddings, f)
+        try:
+            start_time = time.time()
+            embeddings = segment_and_process(bids_path, segment_duration)
+            with open(embedding_path, "wb") as f:
+                pickle.dump(embeddings, f)
+        except:
+            print(f"Error subject {subject}")
