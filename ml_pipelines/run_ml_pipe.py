@@ -63,6 +63,19 @@ def save_results(results, fname):
     with open(os.path.join(results_dir, fname), "wb") as f:
         pickle.dump(results, f)
 
+def run_analysis0(features, analysis_type):
+    """Baseline single feature per sensor."""
+    X = features.drop("group", axis=1)
+    y = features["group"]
+    feature_results = {}
+    for feature in X.columns:
+        logging.info(f"Running pipeline for feature: {feature}")
+        acc = pipeline_baseline(X[[feature]], y)
+        feature_results[feature] = acc
+    fname = f"single_feature_baseline_results_{analysis_type}.pkl"
+    save_results(feature_results, fname)
+    logging.info("Done analysis 0!")
+
 def run_analysis1(features, analysis_type):
     """Single feature HP search per sensor."""
     X = features.drop("group", axis=1)
@@ -244,6 +257,7 @@ def main():
     features = load_and_preprocess_features(analysis_type)
     
     analysis_map = {
+        0: run_analysis0,
         1: run_analysis1,
         2: run_analysis2,
         3: run_analysis3,
@@ -261,7 +275,7 @@ def main():
         analysis_func = analysis_map[analysis]
         analysis_func(features, analysis_type)
     else:
-        logging.error("Invalid analysis number. Choose from 1 to 11.")
+        logging.error("Invalid analysis number. Choose from 0 to 11.")
 
 
 if __name__ == "__main__":
