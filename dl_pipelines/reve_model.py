@@ -5,12 +5,13 @@ import argparse
 import logging
 
 import mne
+import torch
 from mne_bids import BIDSPath
 from goofi.data import to_data
 from goofi.nodes.analysis.reveeeg import ReveEEG
 
 import sys
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils.config import derivatives_dir, results_dir
 
 logging.basicConfig(
@@ -36,20 +37,23 @@ def segment_and_process(eeg_path, segment_duration=60):
     n_segments = int(selected_duration / segment_duration)
     embeddings = {}
 
+    raw_data = raw.get_data()
+    n_samples = raw_data.shape[1]
+    n_timepoints = segment_duration * 200
+    n_segments = n_samples // n_timepoints
     node = ReveEEG.create_standalone()
+    node.params.reve.device.value = "cuda" if torch.cuda.is_available() else "cpu"
     node.setup()
-
     for seg in range(n_segments):
-        tmin = seg * segment_duration
-        tmax = min(tmin + segment_duration, total_duration)
-        raw_segment = raw.copy().crop(tmin=tmin, tmax=tmax)
-        segment_data = raw_segment.get_data()
+        tmin = seg * n_timepoints
+        tmax = (seg + 1) * n_timepoints
+        segment_data = raw_data[:, tmin:tmax]
         embedding = node.process(
             to_data(
                 segment_data,
                 {
                     "sfreq": raw.info["sfreq"],
-                    "channels": {"dim0": raw_segment.ch_names},
+                    "channels": {"dim0": raw.ch_names},
                 },
             )
         )
@@ -84,10 +88,6 @@ def parse_args():
 def process_subject(subject_id, segment_duration):
     subject = f"sub-{subject_id}"
     embedding_path = os.path.join(results_dir, "embeddings", f"embeddings_{subject_id}_{segment_duration}.pkl")
-
-    if embedding_path.is_file():
-        logging.info(f"Embeddings already exist for {subject}. Skipping.")
-        return
 
     bids_path = BIDSPath(
         root=derivatives_dir,
